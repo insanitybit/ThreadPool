@@ -1,5 +1,3 @@
-//https://www.justsoftwaresolutions.co.uk/cplusplus/rvalue_references_and_perfect_forwarding.html
-
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
