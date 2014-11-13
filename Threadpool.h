@@ -33,7 +33,7 @@ class Threadpool
 };
 
 template<class T, class R, class S> Threadpool<T,R,S>::Threadpool(size_t count){
-	//threads.resize(count);
+	threads.resize(count);
 	thread_count = count;
 	active_count = 0;
 }
@@ -54,12 +54,10 @@ template<class T, class R, class S> void Threadpool<T,R,S>::set_output(S& o, siz
 }
 
 template<class T, class R, class S> void Threadpool<T,R,S>::execute_no_atomic(){
-	
-	for (std::vector<thread>::iterator i = threads.begin(); i != threads.end(); ++i)
+	for (int i = 0; i < thread_count; ++i)
 	{
-		threads.push_back(thread(&Threadpool::thread_exec, this));
+		threads[i] = thread(&Threadpool::thread_exec, this);
 	}
-
 }
 
 template<class T, class R, class S> void Threadpool<T,R,S>::thread_exec(){
