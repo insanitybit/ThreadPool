@@ -80,7 +80,10 @@ size_t output_index = 0;
 
 template<class T, class R, class S> void Threadpool<T,R,S>::join(){
 
-	for_each(threads.begin(), threads.end(), mem_fn(&std::thread::join));
+	for (int i = 0; i < thread_count; ++i)
+	{
+		threads[i].join();
+	}
 }
 
 template<class T, class R, class S> S Threadpool<T,R,S>::get_output(){

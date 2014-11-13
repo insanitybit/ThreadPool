@@ -28,10 +28,16 @@ int main(int argc, char const *argv[])
 	
 	pool.set_function(g);
 	pool.set_input(data);
-	pool.set_output(new_data);
+	pool.set_output(ref(new_data));
 
 	pool.execute_no_atomic();
 	pool.join();
+	new_data = pool.get_output();
+
+	for (std::vector<string>::iterator i = new_data.begin(); i != new_data.end(); ++i)
+	{
+		cout << *i << endl;
+	}
 
 	//pool.count_workers(); // check how many threads are active
 	// pool.join(); // wait for the threads to finish
@@ -42,5 +48,6 @@ int main(int argc, char const *argv[])
 void gentest(vector<string>& input, vector<string>& output){
 	mtx.lock();
 	cout << input[0] << endl;
+	output.push_back("hell");
 	mtx.unlock();
 }
