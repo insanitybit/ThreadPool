@@ -25,7 +25,7 @@ class Threadpool
 		void execute_no_atomic();
 		void execute_atomic();
 		void join();
-	//	~Threadpool();
+		~Threadpool();
 
 	private:
 		void thread_exec(std::atomic<size_t>& it);
@@ -66,7 +66,7 @@ void Threadpool<T,R,S>::set_output(S& o){
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::execute_no_atomic(){
 std::atomic<size_t> it;
-
+	it = 0;
 	for (int i = 0; i < thread_count; ++i)
 	{
 		threads[i] = std::thread(&Threadpool::thread_exec, this, std::ref(it));
@@ -107,7 +107,7 @@ void Threadpool<T,R,S>::thread_exec_i(std::atomic<size_t>& it){
 			break;
 		}
 
-		fn(std::ref(input[it]), std::ref(output), currentIndex);
+		fn(std::ref(input[it]), std::ref(output), it);
 	}
 	
 }
@@ -127,8 +127,8 @@ S Threadpool<T,R,S>::get_output(){
 	return output;
 }
 
-// template<class T, class R, class S> 
-// Threadpool<T,R,S>::~Threadpool(){
-// 	threads.clear();
-// }
+template<class T, class R, class S> 
+Threadpool<T,R,S>::~Threadpool(){
+	threads.clear();
+}
 #endif
