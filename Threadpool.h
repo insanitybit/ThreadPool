@@ -21,7 +21,6 @@ class Threadpool
 		void execute_no_atomic(R&, S&);
 		void execute_atomic(R&, S&);
 		void join();
-		~Threadpool();
 
 	private:
 		void thread_exec(R&, S&, std::atomic<size_t>& it);
@@ -35,11 +34,10 @@ class Threadpool
 };
 
 template<class T, class R, class S> 
-Threadpool<T,R,S>::Threadpool(size_t count){
-	threads.resize(count);
-	thread_count = count;
+Threadpool<T,R,S>::Threadpool(size_t thread_count){
+	threads.resize(thread_count);
+	this->thread_count = thread_count;
 	active_count = 0;
-
 }
 
 template<class T, class R, class S> 
@@ -49,7 +47,7 @@ void Threadpool<T,R,S>::set_function(T f){
 
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::execute_no_atomic(R& input, S& output){
-std::atomic<size_t> it;
+	std::atomic<size_t> it;
 	it = 0;
 	for (size_t i = 0; i < thread_count; ++i)
 	{
@@ -59,7 +57,6 @@ std::atomic<size_t> it;
 
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::thread_exec(R& input, S& output, std::atomic<size_t>& it){
-	
 	while(it < input.size()) {
 		size_t currentIndex = it++;
 
@@ -69,7 +66,6 @@ void Threadpool<T,R,S>::thread_exec(R& input, S& output, std::atomic<size_t>& it
 
 		fn(std::ref(input[currentIndex]), std::ref(output));
 	}
-
 }
 
 template<class T, class R, class S> 
@@ -87,14 +83,12 @@ template<class T, class R, class S>
 void Threadpool<T,R,S>::thread_exec_i(R& input, S& output, std::atomic<size_t>& it){
 	while(it < input.size()) {
 		size_t currentIndex = it++;
-
 		if(currentIndex >= input.size()) {
 			break;
 		}
 
-		fn(std::ref(input[it]), std::ref(output), it);
+		fn(std::ref(input[it]), std::ref(output), currentIndex);
 	}
-	
 }
 
 template<class T, class R, class S> 
@@ -106,14 +100,4 @@ void Threadpool<T,R,S>::join(){
 	}
 }
 
-// template<class T, class R, class S> 
-// S Threadpool<T,R,S>::get_output(){
-
-// 	return output;
-// }
-
-template<class T, class R, class S> 
-Threadpool<T,R,S>::~Threadpool(){
-	threads.clear();
-}
 #endif
