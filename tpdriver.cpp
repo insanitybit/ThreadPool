@@ -56,77 +56,21 @@ int main(int argc, char const *argv[])
 	elapsed_seconds = end-start;
 	cout << "no_pool::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
 
-
-
-
+	size_t core_count = thread::hardware_concurrency();
 
 	start = std::chrono::steady_clock::now();
-	Threadpool<fnc, strvec, strvec> pool(8); // Allocate 8 threads
-	
-	end = std::chrono::steady_clock::now();
-
-	elapsed_seconds = end-start;
-	cout << "constructor::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
 
 
-
-	start = std::chrono::steady_clock::now();
+	Threadpool<fnc, vector<string>, vector<string>> pool(core_count);
 
 	pool.set_function(g);
-
-	end = std::chrono::steady_clock::now();
-	
-	elapsed_seconds = end-start;
-	cout << "set_function::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
-
-
-	start = std::chrono::steady_clock::now();
-
-	pool.set_input(ref(data));
-
-	end = std::chrono::steady_clock::now();
-	
-	elapsed_seconds = end-start;
-	cout << "set_input::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
-
-
-
-
-	start = std::chrono::steady_clock::now();
-	pool.set_output(ref(new_data));
-
-	end = std::chrono::steady_clock::now();
-	
-	elapsed_seconds = end-start;
-	cout << "set_output::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
-
-	//pool.execute_no_atomic();
-
-
-	start = std::chrono::steady_clock::now();
-
-	pool.execute_atomic();
-
-	end = std::chrono::steady_clock::now();
-	
-	elapsed_seconds = end-start;
-	cout << "execute_atomic::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
-
-
-
+	pool.execute_atomic(ref(data), ref(new_data));
 	pool.join();
 
 	end = std::chrono::steady_clock::now();
 	
 	elapsed_seconds = end-start;
 	cout << "join::  " << elapsed_seconds.count() * 1000 << "ms" << endl;
-
-	//new_data = pool.get_output();
-
-	for (int i = 0; i < 5; ++i)
-	{
-		cout << new_data[i] << endl;
-	}
 
 	return 0;
 }
