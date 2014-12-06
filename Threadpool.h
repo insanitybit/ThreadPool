@@ -22,8 +22,8 @@ class Threadpool
 		void execute_no_atomic(R&, S&);
 		void execute_atomic(R&, S&);
 		void join();
-		void sleep(const size_t);
-		void wake(const size_t);
+		void sleep_all();
+		void wake_all();
 		size_t get_active_count();
 		size_t get_items_processed();
 
@@ -37,6 +37,7 @@ class Threadpool
 		std::mutex mtx;
 		std::condition_variable condition;
 		std::atomic<size_t> it;
+		bool spin;
 };
 
 template<class T, class R, class S> 
@@ -45,6 +46,7 @@ Threadpool<T,R,S>::Threadpool(const size_t thread_count){
 	this->thread_count = thread_count;
 	active_count = 0;
 	it = 0;
+	spin = false;
 }
 
 template<class T, class R, class S> 
@@ -63,7 +65,11 @@ void Threadpool<T,R,S>::execute_no_atomic(R& input, S& output){
 
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::thread_exec(R& input, S& output, std::atomic<size_t>& it){
+	std::unique_lock<std::mutex> lck(mtx);
 	while(it < input.size()) {
+		while(spin){
+			condition.wait(lck);
+		}
 		size_t currentIndex = it++;
 		if(currentIndex >= input.size()) {
 			it--;
@@ -84,7 +90,11 @@ void Threadpool<T,R,S>::execute_atomic(R& input, S& output){
 
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::thread_exec_i(R& input, S& output, std::atomic<size_t>& it){
-	while(it < input.size()) {
+		std::unique_lock<std::mutex> lck(mtx);
+		while(it < input.size()) {
+			while(spin){
+				condition.wait(lck);
+			}
 		size_t currentIndex = it++;
 		if(currentIndex >= input.size()) {
 			it--;
@@ -102,20 +112,20 @@ void Threadpool<T,R,S>::join(){
 	}
 }
 
-
 // sleep and wake not implemented
 template<class T, class R, class S> 
-void Threadpool<T,R,S>::sleep(const size_t count){
-	active_count-= count;
-	assert(active_count <= thread_count); // catch underflow
+void Threadpool<T,R,S>::sleep_all(){
+	active_count = 0;
+	spin = true;
 
 }
+
 // sleep and wake not implemented
 template<class T, class R, class S> 
-void Threadpool<T,R,S>::wake(const size_t count){
-	active_count+= count;
-	assert(active_count <= thread_count); // catch overflow
-
+void Threadpool<T,R,S>::wake_all(){
+	active_count = thread_count;
+	spin = false;
+	condition.notify_all();
 }
 
 template<class T, class R, class S> 

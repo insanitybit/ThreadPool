@@ -52,21 +52,23 @@ int main(int argc, char const *argv[])
 	
 	start = std::chrono::steady_clock::now();
 
-	cout << "opool\t" << opool.get_items_processed() << endl;
+//	cout << "opool\t" << opool.get_items_processed() << endl;
 
 	Threadpool<fnc, vector<string>, vector<string>> pool(core_count);
 
 	pool.set_function(g);
 	pool.execute_atomic(ref(data), ref(new_data));
+	pool.sleep_all();
 
-	size_t c;
-	while(true)
-	{
-		c = pool.get_items_processed();
-		cout << "pool\t" << c << endl;
-		if(c == 1000)
-			break;
-	}
+	pool.wake_all();
+	// size_t c;
+	// while(true)
+	// {
+	// 	c = pool.get_items_processed();
+	// 	cout << "pool\t" << c << endl;
+	// 	if(c == data.size())
+	// 		break;
+	// }
 	pool.join();
 
 	end = std::chrono::steady_clock::now();
@@ -99,8 +101,7 @@ void gentest(string&, vector<string>& output, const size_t i){
 		// 	}
 		// }
 	int it = 1 + 1;
-
-		output[i] = ("i" + to_string(it * 2));
+	//	output[i] = ("i" + to_string(it * 2));
 
 }
 
