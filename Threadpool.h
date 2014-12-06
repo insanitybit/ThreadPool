@@ -17,6 +17,7 @@ template<class T, class R, class S>
 class Threadpool
 {
 	public:
+		Threadpool();
 		Threadpool(const size_t count);
 		void set_function(const T&);
 		void execute_no_atomic(R&, S&);
@@ -26,6 +27,7 @@ class Threadpool
 		void wake_all();
 		size_t get_active_count();
 		size_t get_items_processed();
+		size_t get_thread_count();
 
 	private:
 		void thread_exec(R&, S&, std::atomic<size_t>& it);
@@ -39,6 +41,16 @@ class Threadpool
 		std::atomic<size_t> it;
 		bool spin;
 };
+
+template<class T, class R, class S> 
+Threadpool<T,R,S>::Threadpool(){
+	thread_count = std::thread::hardware_concurrency();
+	threads.resize(thread_count);
+	this->thread_count = thread_count;
+	active_count = 0;
+	it = 0;
+	spin = false;
+}
 
 template<class T, class R, class S> 
 Threadpool<T,R,S>::Threadpool(const size_t thread_count){
@@ -68,7 +80,9 @@ void Threadpool<T,R,S>::thread_exec(R& input, S& output, std::atomic<size_t>& it
 	std::unique_lock<std::mutex> lck(mtx);
 	while(it < input.size()) {
 		while(spin){
+			active_count--;
 			condition.wait(lck);
+			active_count++;
 		}
 		size_t currentIndex = it++;
 		if(currentIndex >= input.size()) {
@@ -77,6 +91,7 @@ void Threadpool<T,R,S>::thread_exec(R& input, S& output, std::atomic<size_t>& it
 		}
 		fn(std::ref(input[currentIndex]), std::ref(output));
 	}
+	active_count--;
 }
 
 template<class T, class R, class S> 
@@ -90,11 +105,13 @@ void Threadpool<T,R,S>::execute_atomic(R& input, S& output){
 
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::thread_exec_i(R& input, S& output, std::atomic<size_t>& it){
-		std::unique_lock<std::mutex> lck(mtx);
-		while(it < input.size()) {
-			while(spin){
-				condition.wait(lck);
-			}
+	std::unique_lock<std::mutex> lck(mtx);
+	while(it < input.size()) {
+		while(spin){
+			active_count--;
+			condition.wait(lck);
+			active_count++;
+		}
 		size_t currentIndex = it++;
 		if(currentIndex >= input.size()) {
 			it--;
@@ -102,6 +119,7 @@ void Threadpool<T,R,S>::thread_exec_i(R& input, S& output, std::atomic<size_t>& 
 		}
 		fn(std::ref(input[currentIndex]), std::ref(output), currentIndex);
 	}
+	active_count--;
 }
 
 template<class T, class R, class S> 
@@ -115,15 +133,12 @@ void Threadpool<T,R,S>::join(){
 // sleep and wake not implemented
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::sleep_all(){
-	active_count = 0;
 	spin = true;
-
 }
 
 // sleep and wake not implemented
 template<class T, class R, class S> 
 void Threadpool<T,R,S>::wake_all(){
-	active_count = thread_count;
 	spin = false;
 	condition.notify_all();
 }
@@ -136,6 +151,11 @@ size_t Threadpool<T,R,S>::get_active_count(){
 template<class T, class R, class S> 
 size_t Threadpool<T,R,S>::get_items_processed(){
 	return it;
+}
+
+template<class T, class R, class S> 
+size_t Threadpool<T,R,S>::get_thread_count(){
+	return thread_count;
 }
 
 #endif
