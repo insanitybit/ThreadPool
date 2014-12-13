@@ -6,11 +6,7 @@ to assign tasks to threads.
 
 Functions:
 
-		Threadpool(const T&);
-		Threadpool(const size_t count);
 		Threadpool(const size_t count, const T&);
-
-
 
 		void set_function(const T&);
 		void execute_no_atomic(R&, Args...);
