@@ -17,11 +17,10 @@ template<class T, class R,typename... Args>
 class Threadpool
 {
 	public:
-		Threadpool(const T&);
-		Threadpool(const size_t count);
-		Threadpool(const size_t count, const T&);
+		Threadpool(const size_t, const T&);
 
 		void set_function(const T&);
+		void set_thread_count(const size_t);
 		void execute_no_atomic(R&, Args...);
 		void execute_atomic(R&, Args...);
 		void join();
@@ -30,10 +29,11 @@ class Threadpool
 		size_t get_active_count();
 		size_t get_items_processed();
 		size_t get_thread_count();
+		void reset();
 
 	private:
-		void thread_exec(R&, std::atomic<size_t>& it, Args...);
-		void thread_exec_i(R&, std::atomic<size_t>& it, Args...);
+		void thread_exec(R&, Args...);
+		void thread_exec_i(R&, Args...);
 		size_t thread_count;
 		size_t active_count;
 		std::vector<std::thread> threads;
@@ -43,25 +43,6 @@ class Threadpool
 		std::atomic<size_t> it;
 		bool spin;
 };
-
-template<class T, class R, typename... Args> 
-Threadpool<T,R,Args...>::Threadpool(const size_t thread_count){
-	threads.resize(thread_count);
-	this->thread_count = thread_count;
-	active_count = 0;
-	it = 0;
-	spin = false;
-}
-
-template<class T, class R, typename... Args> 
-Threadpool<T,R,Args...>::Threadpool(const T& fn){
-	thread_count = std::thread::hardware_concurrency();
-	this->fn = fn;
-	threads.resize(thread_count);
-	active_count = 0;
-	it = 0;
-	spin = false;
-}
 
 template<class T, class R, typename... Args> 
 Threadpool<T,R,Args...>::Threadpool(const size_t thread_count, const T& fn){
@@ -83,13 +64,13 @@ void Threadpool<T,R,Args...>::execute_no_atomic(R& input, Args... args){
 	active_count = thread_count;
 	for (size_t i = 0; i < thread_count; ++i)
 	{
-		threads[i] = std::thread(&Threadpool::thread_exec, this, std::ref(input), std::ref(it), args...);
+		threads[i] = std::thread(&Threadpool::thread_exec, this, std::ref(input), args...);
 	}
 }
 
 template<class T, class R, typename... Args> 
-void Threadpool<T,R,Args...>::thread_exec(R& input, std::atomic<size_t>& it, Args... args){
-	std::unique_lock<std::mutex> lck(mtx);
+void Threadpool<T,R,Args...>::thread_exec(R& input, Args... args){
+	std::unique_lock<std::mutex> lck(mtx, std::defer_lock);
 	while(it < input.size()) {
 		while(spin){
 			active_count--;
@@ -111,13 +92,13 @@ void Threadpool<T,R,Args...>::execute_atomic(R& input, Args... args){
 	active_count = thread_count;
 	for (size_t i = 0; i < thread_count; ++i)
 	{
-		threads[i] = std::thread(&Threadpool::thread_exec_i, this, std::ref(input), std::ref(it), args...);
+		threads[i] = std::thread(&Threadpool::thread_exec_i, this, std::ref(input), args...);
 	}
 }
 
 template<class T, class R, typename... Args> 
-void Threadpool<T,R,Args...>::thread_exec_i(R& input, std::atomic<size_t>& it, Args... args){
-	std::unique_lock<std::mutex> lck(mtx);
+void Threadpool<T,R,Args...>::thread_exec_i(R& input, Args... args){
+	std::unique_lock<std::mutex> lck(mtx, std::defer_lock);
 	while(it < input.size()) {
 		while(spin){
 			active_count--;
@@ -125,10 +106,10 @@ void Threadpool<T,R,Args...>::thread_exec_i(R& input, std::atomic<size_t>& it, A
 			active_count++;
 		}
 		size_t currentIndex = it++;
-		// if(currentIndex >= input.size()) {
-		// 	it--;
-		// 	break;
-		// }
+		if(currentIndex >= input.size()) {
+			it--;
+			break;
+		}
 		fn(std::ref(input[currentIndex]), currentIndex, args...);
 	}
 	active_count--;
@@ -142,13 +123,11 @@ void Threadpool<T,R,Args...>::join(){
 	}
 }
 
-// sleep and wake not implemented
 template<class T, class R, typename... Args> 
 void Threadpool<T,R,Args...>::sleep_all(){
 	spin = true;
 }
 
-// sleep and wake not implemented
 template<class T, class R, typename... Args> 
 void Threadpool<T,R,Args...>::wake_all(){
 	spin = false;
@@ -168,6 +147,21 @@ size_t Threadpool<T,R,Args...>::get_items_processed(){
 template<class T, class R, typename... Args> 
 size_t Threadpool<T,R,Args...>::get_thread_count(){
 	return thread_count;
+}
+
+
+template<class T, class R, typename... Args> 
+void Threadpool<T,R,Args...>::set_thread_count(const size_t s){
+	thread_count = s;
+	threads.resize(thread_count);
+}
+
+
+template<class T, class R, typename... Args> 
+void Threadpool<T,R,Args...>::reset(){
+	it = 0;
+	spin = false;
+	threads.clear();
 }
 
 #endif
