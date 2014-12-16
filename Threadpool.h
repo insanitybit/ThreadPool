@@ -31,6 +31,7 @@ class Threadpool
 		size_t get_items_processed();
 		size_t get_thread_count();
 
+		void detach();
 		void reset();
 
 	private:
@@ -68,6 +69,7 @@ class Threadpool<Function_T>
 		size_t get_items_processed();
 		size_t get_thread_count();
 
+		void detach();
 		void reset();
 
 	private:
@@ -206,6 +208,22 @@ void Threadpool<Function_T, Args...>::reset(){
 	threads.clear();
 }
 
+template<class Function_T, typename... Args> 
+void Threadpool<Function_T, Args...>::detach(){
+	for (size_t i = 0; i < threads.size(); ++i)
+	{
+		threads[i].detach();
+	}
+}
+
+
+
+/*
+
+	For functions that take no arguments
+
+*/
+
 
 template<class Function_T> 
 Threadpool<Function_T>::Threadpool(const size_t thread_count, const Function_T& fn){
@@ -327,5 +345,15 @@ void Threadpool<Function_T>::reset(){
 	spin = false;
 	threads.clear();
 }
+
+template<class Function_T> 
+void Threadpool<Function_T>::detach(){
+	for (size_t i = 0; i < threads.size(); ++i)
+	{
+		threads[i].detach();
+	}
+
+}
+
 
 #endif
