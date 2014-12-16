@@ -93,7 +93,6 @@ Threadpool<Function_T, Args...>::Threadpool(const size_t thread_count, const Fun
 	active_count = 0;
 	it = 0;
 	spin = false;
-	std::cout << "aergaerg\n";
 }
 
 template<class Function_T, typename... Args> 
