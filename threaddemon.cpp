@@ -1,43 +1,87 @@
 #include "Threadpool.h"
 #include <iostream>
 #include <array>
-#include <chrono>
+#include <mutex>
 
 using namespace std;
 
-typedef function<void(size_t)> fnc;
+void empty_fake_work();
+void args_fake_work(char, int&, string&);
+void args_atomic_fake_work(size_t, std::array<size_t,10>& ,std::array<size_t,10>&);
 
-void fake_work(size_t);
+mutex mtx;
 
 int main()
 {
 
-	std::chrono::time_point<std::chrono::steady_clock> start, end;
-	std::chrono::duration<double> elapsed_seconds;
-	start = std::chrono::steady_clock::now();
-
-	const size_t core_count = thread::hardware_concurrency();
-	fnc f = &fake_work;
-
-	array<size_t, 100> data;
+	array<size_t, 10> data;
 	data.fill(10);
+	array<size_t, 10> new_data;
 
-	Threadpool<fnc, array<size_t, 100>> pool(core_count, f);
+	const size_t run_count = 10;
+	const auto core_count = thread::hardware_concurrency();
 
-	pool.execute_no_atomic(std::ref(data));
-	pool.join();
 
-	end = std::chrono::steady_clock::now();
+	/*
+		Example of threadpool that executes a function that requires no arguments.
+	*/
 
-	elapsed_seconds = end-start;
-	cout << "Threadpool execution time::\t" << elapsed_seconds.count() * 1000 << "ms" << endl;
+
+	auto empty_f = &empty_fake_work;
+
+	Threadpool<decltype(empty_f)> voidpool(core_count, empty_f);
+	voidpool.execute_no_atomic(run_count);
+	voidpool.join();
+
+
+	/*
+		Example of a threadpool that uses a variadic template to take in any number of arguments
+		The threadpool will pass these arguments to the passed function
+	*/
+
+
+	auto args_f = &args_fake_work;
+	char a = 'a';
+	int x = 5;
+	string str = "old";
+
+	Threadpool<decltype(args_f), char, int, string> argspool(core_count, args_f);
+	argspool.execute_no_atomic(run_count, a, x, str);
+	argspool.join();
+	// str = "New ", x = 15
+
+
+	/*
+		Another variadic threadpool, but this one passes in an atomic for synchronization
+	*/
+
+	auto atomic_f = &args_atomic_fake_work;
+
+	Threadpool<decltype(atomic_f), decltype(data), decltype(new_data) > atompool(core_count, atomic_f);
+	atompool.execute_atomic(data.size(), std::ref(data), std::ref(new_data));
+	atompool.join();
+
+	// for(auto&& a : new_data)
+	// 	cout << a << endl;
 
 	return 0;
 }
 
-void fake_work(size_t t){
-	std::chrono::milliseconds dura(t);
+void empty_fake_work(){
+	// cout << "empty fake work\n";
+}
 
-	std::this_thread::sleep_for(dura);
+void args_fake_work(char a, int& x, string& s){
+	mtx.lock();
+	// cout << "args fake work\n";
+	s = "New ";
+	x = 15;
+	mtx.unlock();
+	a = 'b';
+}
+
+void args_atomic_fake_work(size_t it, std::array<size_t, 10>& input ,std::array<size_t, 10>& output){
+
+	output[it] = input[it] + it;
 
 }
